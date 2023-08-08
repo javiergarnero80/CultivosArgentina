@@ -1,0 +1,49 @@
+import time
+import pandas as pd
+from geopy.geocoders import Nominatim
+from tqdm import tqdm
+
+geolocator = Nominatim(user_agent="my_app", timeout=None)
+
+def obtener_longitud_latitud(direccion):
+    try:
+        location = geolocator.geocode(direccion, timeout=10)
+        if location:
+            return location.longitude, location.latitude
+    except (GeocoderTimedOut, GeocoderServiceError) as e:
+        print(f"Error de geocodificación para la dirección '{direccion}': {str(e)}")
+    return None, None
+
+# Leer el archivo CSV
+df = pd.read_csv("/home/jlinux/Escritorio/archivo2.csv", sep=";", encoding='utf-8')
+
+print(df.columns)
+
+# Crear una barra de progreso
+total_rows = len(df)
+progress_bar = tqdm(total=total_rows, desc="Geocodificación", unit="row")
+
+# Iterar sobre las filas del DataFrame
+for index, row in df.iterrows():
+    provincia = row["Provincia"]
+    departamento = row["Departamento"]
+
+    # Construir la dirección utilizando los datos de provincia y departamento
+    direccion = f"{departamento}, {provincia}, Argentina"
+
+    # Obtener longitud y latitud para la dirección
+    longitud, latitud = obtener_longitud_latitud(direccion)
+
+    # Actualizar los valores en el DataFrame si se obtuvieron las coordenadas
+    if longitud and latitud:
+        df.at[index, "Longitud"] = longitud
+        df.at[index, "Latitud"] = latitud
+
+    # Actualizar la barra de progreso
+    progress_bar.update(1)
+
+# Cerrar la barra de progreso
+progress_bar.close()
+
+# Guardar el DataFrame actualizado en un nuevo archivo CSV
+df.to_csv("/home/jlinux/Escritorio/salida_coordenadas.csv", index=False)
